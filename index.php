@@ -280,6 +280,12 @@
 						<input class="button" name="submit" type="submit" value="Destroy" onclick="return confirmDestroy();" />
 					</form>
 				</li> -->
+				<li>
+					<form name="refresh" action="" method="post">
+						<input type="hidden" name="action" value="refresh">
+						<input class="button" name="submit" type="submit" value="refresh" />
+					</form>
+				</li>
 			</ul>
 		</div>
 		<p class="<?php echo $contentClass; ?>"><?php echo $content; ?></p>
