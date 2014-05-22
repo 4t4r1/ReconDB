@@ -1,0 +1,208 @@
+html {
+	min-width: 300px;
+	padding: 0px 10px;
+	background: #000;
+}
+html, td {
+	color: white;
+	font: 10px/12px monospace;
+}
+
+input,
+select,
+textarea {
+	color: #333;
+	vertical-align: middle;
+}
+
+a {
+	color: white;
+	font: 10px/12px monospace;
+	background: #000;
+}
+a:hover {
+	color: #ddd;
+	text-decoration: none;
+}
+
+span.os {
+	color: #ccc;
+}
+
+.success {
+	color: SpringGreen;
+}
+.failure {
+	color: OrangeRed;
+}
+.alert {
+	color: Gold;
+}
+
+div.messages {
+	padding: 10px;
+}
+
+h1 {
+	font-size: 1.5em;
+}
+h2 {
+	font-size: 1.2em;
+}
+
+div.menu div.view {
+	padding: 10px 10px 0 10px;
+	border: 1px solid white;
+}
+div.menu div.view.nopad {
+	padding: 0;
+	border: 0;
+}
+
+/**
+ * Menu
+ */
+
+div.menu {
+	position: absolute;
+	top: 0;
+	left: 10px;
+	width: 230px;
+	
+}
+
+	div.menu ul {
+		
+	}
+		div.menu ul li {
+			line-height: 20px;
+			margin: 0 0 10px 0;
+		}
+				div.menu ul li a,
+				div.menu ul li input {
+					margin: 0;
+				}
+	
+	/* slightly different scope */
+	form[name='server'] li.field input,
+	form[name='server'] li.field select {
+		float: right;
+		text-align: right;
+	}
+
+/**
+ * Display
+ */
+
+div.display {
+	padding-left: 250px; /* match with menu width */
+}
+
+td.actions form {
+	display: inline-block;	
+}
+
+td.actions input {
+	color: white;
+	font: 10px/12px monospace;
+	text-decoration: underline;
+	vertical-align: top;
+	border: none;
+	padding: 0 !important;
+	background: none !important;
+}
+td.actions input:hover {
+	color: #ddd;
+	text-decoration: none;
+}
+
+/**
+ * Default ??????
+ */
+
+ul {
+	list-style-type: none;
+	padding: 0;
+	margin: 0;
+}
+	ul li {
+		list-style-type: none;
+		line-height: 20px;
+		padding: 0;
+		margin: 0;
+		vertical-align: middle;
+	}
+		ul.horizontal li {
+			display: inline-block;
+		}
+
+/**
+ * Forms
+ */
+
+form {
+	padding: 0;
+	margin: 0;
+}
+				
+form select {
+	padding-top: 2px;
+	height: 19px;
+}
+	form select option {
+		padding-top: 2px;
+		padding-bottom: 2px;
+	}
+	form select option[selected] {
+		background: #ddd;
+	}
+
+/*** Button ***/
+.button {
+	display: inline-block;
+	color: #fff;
+	text-decoration: none;
+	padding: 3px 10px;
+	margin-bottom: 5px;
+	border: 1px outset white;
+	background: transparent;
+	/* corners */
+  -webkit-border-radius: 5px;
+	border-radius: 5px;
+  background-clip: padding-box;
+}
+.button:hover {
+	color: #ddd;
+	border: 1px inset white;
+}
+.button:active {
+	position: relative;
+	top: 1px;
+}
+
+/**
+ * Tables
+ */
+table {
+	margin-bottom: 1em;
+}
+	table tr {}
+		table tr th,
+		table tr td {
+			padding: 4px 10px;
+			border: 1px solid white;
+		}
+
+/**
+ * 	Clear "function"
+ */
+
+.clear:before,
+.clear:after {
+    content: " ";
+    display: table;
+}
+
+.clear:after {
+    clear: both;
+}
