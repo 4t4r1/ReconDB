@@ -3,248 +3,190 @@
 	/**
 	 * INI
 	 */
+
 	ini_set ('magic_quotes_gpc', 0);
 	ini_set('date.timezone', 'Europe/London');
 	// ini_set( 'upload_max_size' , '16M');
 	// ini_set( 'post_max_size', '16M');
 	ini_set('display_errors', 1);
 	error_reporting(E_ALL);
-	//
-	ini_set('phar.readonly', 0);
+	// ini_set('phar.readonly', 0);
 
 	/**
 	 * Includes
 	 */
+
 	include_once("controller/ReconDB.php");
-	
+
 	/**
 	 * Initialize Classes
-	 */	
+	 */
+
 	$recon = new ReconDB();
-	
-	// local messaging
-	$contentClass = null;
-	$content = htmlentities("Initialising...");
-	
+
 	//
-	if ($recon->configEnabled()) {
-		
+	if ($recon->getConfigStatus()) {
+
 		/**
 		 * POST Controller
 		 */
-		
-		// print_r($_POST);
+
 		//
+		// print_r($_POST);
 		$action = @$_POST["action"];
-		// if ($action == null) $action = @$_GET["action"];
 		//
 		switch ($action) {
+
 			case "server":
 				// POST variables
-				// $type = @$_POST["type"];
+				// $type = @$_POST["type"]; // TODO Implement server type
 				$host = @$_POST["host"];
 				$port = @$_POST["port"];
 				$username = @$_POST["username"];
 				$password = @$_POST["password"];
-				$database = @$_POST["database"];
-				//
-				if ($recon->dataTest($host, $port, $username, $password)) {
-					// remember: $type
-					// success
-					if ($recon->configWrite($host, $port, $username, $password, $database)) {
-						// success
-						$recon->dataConnect();
-					} else {
-						// failure
-						echo "Fata Error : configWrite() fail.";
-						exit;
-					}
-				} else {
-					// failure
-					echo "Fata Error : dataTest() fail.";
-					exit;
-				}
-				//
+				// write
+				$recon->configWriteServer($host, $port, $username, $password);
 				break;
-			// case "import":
-				// //
-				// $content = "I can't do that yet :(";
-				// $contentClass = "failure";
-				// break;
-			// case "export":
-				// //
-				// $content = "I can't do that yet :(";
-				// $contentClass = "failure";
-				// break;
-			case "backup":
-				//
-				$filename = $recon->backup();
-				//
-				$content = htmlentities("I've just backed up, would you like to");
-				$content .= " <a href='{$recon->getBackupURL()}$filename'>download the file?</a>";
-				$contentClass = "success";
-				break;
-			// case "implode":
-				// //
-				// $content = "I've just emploded the database - yeehaa!,)";
-				// $contentClass = "success";
-				// break;
-			// case "destroy":
-				// //
-				// $content = "You just tried to kill me, biatch!";
-				// $contentClass = "alert";
-				// break;
-			case "install":
-				//
-				$filename = @$_POST["filename"];
-				if ($filename) {
-					if ($recon->install($filename)) {
-						$content = htmlentities("I have just installed $filename");
-						$contentClass = "success";
-					} else {
-						$content = htmlentities("I failed to install $filename");
-						$contentClass = "failure";
-					}
-				} else {
-					// no filename
-					$content = htmlentities("I can't find the file you asked me to install..?");
-					$contentClass = "alert";
-				}
-				break;
-			// case "download":
-				//
-				// break;
-			case "delete":
-				//
-				$filename = @$_POST["filename"];
-				if ($filename) {
-					if ($recon->delete($filename)) {
-						$content = htmlentities("I've just deleted $filename");
-						$contentClass = "success";
-					} else {
-						$content = htmlentities("I failed to delete $filename");
-						$contentClass = "failure";
-					}
-				} else {
-					// no filename
-					$content = htmlentities("I can't find the file you asked me to delete..?");
-					$contentClass = "alert";
-				}
-				//
-				break;
+
 			case "database":
 				// POST variables
 				$database = @$_POST["database"];
 				//
-				if ($recon->configWriteDB($database)) {
-					// success
-					$recon->dataConnect();
-				} else {
-					// failure
-					echo "Fata Error : configWriteDB() fail.";
-					exit;
-				}
-				// only break if no database - otherwise switch to default
-				if (!$database) break;
+				$recon->configWriteDatabase($database);
+				break;
+
+			// case "import":
 				// break;
+			// case "export":
+				// break;
+
+			case "backup":
+				//
+				$filename = $recon->backup();
+				break;
+
+			// case "implode":
+				// break;
+			// case "destroy":
+				// break;
+
+			case "install":
+				//
+				$filename = @$_POST["filename"];
+				$recon->install($filename);
+				break;
+
+			// case "download":
+				// break;
+
+			case "delete":
+				//
+				$filename = @$_POST["filename"];
+				$recon->delete($filename);
+				break;
+
 			default:
 				//
-				$contentClass = null;
-				$content = "You&apos;re currently using the &ldquo;{$recon->database()}&rdquo; database.";
+				$recon->serverInit();
 				break;
 		}
-		
+
 	}
-	
+
 ?>
 
 <!doctype html>
 <html lang="en">
-	
+
 	<head>
 		<meta charset="utf-8">
 		<title>Index | ReconDB</title>
 		<link type="text/css" href="view/css/normalise.css" rel="stylesheet"></link>
 		<link type="text/css" href="view/css/main.css" rel="stylesheet"></link>
 	</head>
-	
+
 	<body>
-		
+
 		<div class="menu">
 
-		<h1>ReconDB <?php echo $recon->version; ?></h1>
-		<h2>Server IP : <?php echo $recon->serverIP; ?></h2>
-		<p class="message <?php echo $recon->getConfigStatus(); ?>"><?php echo $recon->getConfigMessage(); ?></p>
-		
-		<h2>Server Connection</h2>
-		<div class="view">
-			<form name="server" action="" method="post">
-				<input type="hidden" name="action" value="server" />
-				<input type="hidden" name="database" value="<?php echo $recon->database(); ?>" />
-				<ul class="menu clear">
-					<li class="field">
-						<label for="type">Type :</label>
-						<select name="type" disabled style="color: #fff;">
-<?php foreach ($recon->types() as $key => $value): ?>
-							<option value="<?= $key; ?>"><?= $value; ?></option>
+			<!-- Config -->
+			<h1>ReconDB <?php echo $recon->version; ?></h1>
+			<h2>Server IP : <?php echo $recon->serverIP(); ?></h2>
+<?php foreach ($recon->configMessages as $message): ?>
+			<p class="message <?php echo $message->class; ?>"><?php echo $message->content; ?></p>
 <?php endforeach; ?>
-						</select>
-					</li>
-					<li class="field">
-						<label for="host">Host :</label>
-						<input name="host" type="text" value="<?= $recon->host(); ?>" size="18" placeholder="localhost" />
-					</li>
-					<li class="field">
-						<label for="port">Port :</label>
-						<input name="port" type="text" value="<?= $recon->port(); ?>" size="6" placeholder="3306" />
-					</li>
-					<li class="field">
-						<label for="username">Username :</label>
-						<input name="username" type="text" value="<?= $recon->username(); ?>" />
-					</li>
-					<li class="field">
-						<label for="password">Password :</label>
-						<input name="password" type="password" value="<?= $recon->password(); ?>" />
-					</li>
-					<li class="action">
-						<input class="button" name="submit" type="submit" value="connect to server" />
-					</li>
-				</ul>
-			</form>
-		</div>
-<?php if (!$recon->validateIP()): ?>
-		<p class="message alert">Server &amp; Database IPs differ.</p>
-<? endif; ?>
-		<p class="message <?php echo $recon->getDataStatus(); ?>"><?php echo $recon->getDataMessage(); ?></p>
-		
-<?php if ($recon->dataConnected()): ?>
-		<h2>Database</h2>
-		<div class="view">
-			<form name="database" action="" method="post">
-				<input type="hidden" name="action" value="database" />
-				<ul class="horizontal clear">
-					<li class="field">
-						<label for="database">Database :</label>
-						<select name="database">
-<?php foreach ($recon->fetchDatabases() as $key => $database): ?>
-							<option value="<?= $key; ?>" <?php if ($database == $recon->database()) echo "selected=selected"; ?>><?= $database; ?></option>
+
+			<!-- Server -->
+			<h2>Server Connection</h2>
+			<div class="view">
+				<form name="server" action="" method="post">
+					<input type="hidden" name="action" value="server" />
+					<input type="hidden" name="database" value="<?php echo $recon->getServerDatabase(); ?>" />
+					<ul class="menu clear">
+						<li class="field">
+							<label for="type">Type :</label>
+							<select name="type" disabled style="color: #fff;">
+<?php foreach ($recon->getServerTypes() as $key => $value): ?>
+								<option value="<?php echo $key; ?>"><?php echo $value; ?></option>
 <?php endforeach; ?>
-						</select>
-						<!-- <input name="database" type="text" value="<?= $recon->database(); ?>" /> -->
-					</li>
-					<li class="action">
-						<input class="button" name="submit" type="submit" value="change database" />
-					</li>
-				</ul>
-			</form>
-		</div>
-		<p class="message <?php echo $recon->getSelectedStatus(); ?>"><?php echo $recon->getSelectedMessage(); ?></p>
-<? endif; ?>
+							</select>
+						</li>
+						<li class="field">
+							<label for="host">Host :</label>
+							<input name="host" type="text" value="<?php echo $recon->getServerHost(); ?>" size="18" placeholder="localhost" />
+						</li>
+						<li class="field">
+							<label for="port">Port :</label>
+							<input name="port" type="text" value="<?php echo $recon->getServerPort(); ?>" size="6" placeholder="3306" />
+						</li>
+						<li class="field">
+							<label for="username">Username :</label>
+							<input name="username" type="text" value="<?php echo $recon->getServerUsername(); ?>" placeholder="root" />
+						</li>
+						<li class="field">
+							<label for="password">Password :</label>
+							<input name="password" type="password" value="<?php echo $recon->getServerPassword(); ?>" />
+						</li>
+						<li class="action">
+							<input class="button" name="submit" type="submit" value="connect to server" />
+						</li>
+					</ul>
+				</form>
+			</div>
+<?php foreach ($recon->serverMessages as $message): ?>
+			<p class="message <?php echo $message->class; ?>"><?php echo $message->content; ?></p>
+<?php endforeach; ?>
+
+			<!-- Database -->
+<?php if ($recon->hasServerDatabases()): ?>
+			<h2>Database</h2>
+			<div class="view">
+				<form name="database" action="" method="post">
+					<input type="hidden" name="action" value="database" />
+					<ul class="horizontal clear">
+						<li class="field">
+							<label for="database">Database :</label>
+							<select name="database">
+	<?php foreach ($recon->getServerDatabases() as $key => $database): ?>
+								<option value="<?= $key; ?>" <?php if ($database == $recon->getServerDatabase()) echo "selected=selected"; ?>><?= $database; ?></option>
+	<?php endforeach; ?>
+							</select>
+						</li>
+						<li class="action">
+							<input class="button" name="submit" type="submit" value="change database" />
+						</li>
+					</ul>
+				</form>
+			</div>
+	<?php foreach ($recon->serverDatabaseMessages as $message): ?>
+			<p class="message <?php echo $message->class; ?>"><?php echo $message->content; ?></p>
+	<?php endforeach; ?>
+<?php endif; ?>
 
 		</div>
 		<div class="display">
 
-<? if ($recon->dataSelected()): ?>
+<?php if ($recon->getServerDatabaseStatus()): ?>
 		<!-- menu -->
 		<h2>Actions</h2>
 		<div class="view">
@@ -283,19 +225,21 @@
 				<li>
 					<form name="refresh" action="" method="post">
 						<input type="hidden" name="action" value="refresh">
-						<input class="button" name="submit" type="submit" value="refresh" />
+						<input class="button" name="submit" type="submit" value="Refresh" />
 					</form>
 				</li>
 			</ul>
 		</div>
-		<p class="<?php echo $contentClass; ?>"><?php echo $content; ?></p>
+	<?php foreach ($recon->backupMessages as $message): ?>
+			<p class="message <?php echo $message->class; ?>"><?php echo $message->content; ?></p>
+	<?php endforeach; ?>
+
 		<br />
+
 		<!-- history -->
-	<?php
-		$backups = $recon->getBackups();
-		if ($backups):
-	?>
 		<h2>Local Database Back-ups</h2>
+		<p><?php echo $recon->getBackupDir(); ?></p>
+	<?php if ($recon->hasBackups()): ?>
 		<div class="view nopad">
 			<table class="clear">
 					<tr>
@@ -307,12 +251,12 @@
 						<th>extension</th>
 						<th>actions</th>
 					</tr>
-		<?php foreach ($backups as $backup): ?>
+		<?php foreach ($recon->getBackups() as $backup): ?>
 				<tr>
 					<td><? echo $backup->date; ?></td>
 					<td><? echo $backup->time; ?></td>
 					<td><? echo $backup->server; ?></td>
-					<td class="<?php if ($backup->database == $recon->database()) echo "success"; ?>"><? echo $backup->database; ?></td>
+					<td class="<?php if ($backup->database == $recon->getServerDatabase()) echo "success"; ?>"><? echo $backup->database; ?></td>
 					<td><? echo $backup->type; ?></td>
 					<td><? echo $backup->extension; ?></td>
 					<td class="actions">
@@ -327,15 +271,14 @@
 							<input type="hidden" name="filename" value="<?php echo $backup->filename; ?>" />
 							<input type="submit" name="submit" value="delete" onclick="return confirmDelete();" />
 						</form>
-						<!-- <a class="action" href="?action=install&filename=<?php echo $backup->filename; ?>" onclick="return confirmInstall();">install</a>
-						<a class="action" href="?action=delete&filename=<?php echo $backup->filename; ?>" onclick="return confirmDelete();">delete</a> -->
 					</td>
 				</tr>
 		<?php endforeach; ?>
 			</table>
 	<?php else: ?>
-		<h2 class="alert">No Local Database Back-ups</h2>
+		<p class="alert">No back-ups found.</p>
 	<?php endif; ?>
+
 		</div>
 <script type="text/javascript">
 //
@@ -364,5 +307,5 @@ function confirmDelete() {
 		</div>
 
 	</body>
-	
+
 </html>

@@ -1,371 +1,595 @@
 <?php
+
 //// Class
 class ReconDB {
-	
+
 	//// Variables
-	
-	// private $type;
-	private $host;
-	private $port;
-	private $username;
-	private $password;
-	private $database;
-	
+
+	// internal
+	public $version = "&alpha;002";
+
 	// config
-	private $file;
-	private $writable;
-	
-	// database
-	private $connected;
-	private $selected;
-	private $link;
-	
-	// predefined
-	private $types;
-	
-	//
-	private $configFile = "/config.dat";
-	private $backupDir = "model/";
-	private $successClass = "success";
-	private $failureClass = "failure";
-	//
-	public $serverIP;
-	public $version = "&alpha;1";
-	
-	//// Constructor Function
-	
+	private $configFile = "config.dat"; // TODO Implement in another way ?
+	private $configPath;
+	// private $configHandle;
+	private $configEnabled = false;
+	// massages
+	public $configMessages = array();
+
+	// server
+	private $serverType = "mysql"; // TODO Implement server types
+	private $serverHost;
+	private $serverPort;
+	private $serverUsername;
+	private $serverPassword;
+	private $serverDatabase;
+	private $serverSocket;
+	// messages
+	public $serverMessages = array();
+	public $serverDatabaseMessages = array();
+
+	// backup
+	private $backupFolder = "model/";
+	// messages
+	public $backupMessages = array();
+
+	// other
+	private $serverTypes = array(
+		"mysql" => "MySQL"
+	);
+	private $messageCodes = array(
+		0 => "failure",
+		1 => "success",
+		2 => "warning",
+		3 => "none"
+	);
+
+	//// CONSTANTS
+
+	// messaging
+	const FAIL = 0;
+	const PASS = 1;
+	const WARN = 2;
+	const NONE = 3;
+
+
+	/* Constructor & Destructor
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Constructor
+	 *
+	 * @return void
+	 */
+
 	public function __construct() {
-		
-		// defaults
-		// $this->host = "localhost";
-		// $this->port = "3306";
-		// $this->username = "";
-		// $this->password = "";
-		
-		// database types
-		$this->types = array(
-			"mysql" => "MySQL"
-		);
-		$this->serverIP = $_SERVER["SERVER_ADDR"];
-		
+
+		// config path
+		$this->configPath = dirname(__FILE__) . "/" . $this->configFile;
+		if (file_exists($this->configPath)) {
+			// if config
+			if ($handle = @fopen($this->configPath, "r")) {
+
+				// success
+				fclose($handle);
+				$this->message($this->configMessages, self::PASS, "Configuration loaded.");
+
+			} else {
+
+				// failure : fopen(r)
+				$this->message($this->configMessages, self::FAIL, "Failed to access configuration file.");
+
+			}
+		} else {
+			// if no config
+			if ($handle = @fopen($this->configPath, "w")) {
+
+				// write defaults
+				$defaults = array("localhost", "3306", "root", null, null);
+				fwrite($handle, implode("\n", $defaults));
+
+				// success
+				fclose($handle);
+				$this->message($this->configMessages, self::WARN, "New configuration.");
+
+			} else {
+				// failure : fopen(w)
+				$this->message($this->configMessages, self::FAIL, "Failed to create configuration file.");
+			}
+
+		}
+
+		// read config into array
+		$config = file($this->configPath);
+		// initialise class variables
+		$this->serverHost     = trim(@$config[0]);
+		$this->serverPort     = trim(@$config[1]);
+		$this->serverUsername = trim(@$config[2]);
+		$this->serverPassword = trim(@$config[3]);
+		$this->serverDatabase = trim(@$config[4]);
+		//
+		$this->configEnabled = true;
+
+	}
+
+	/**
+	 * @name Destructor
+	 *
+	 * @return void
+	 */
+
+	public function __destruct() {
+
+		// if ($this->configHandle) fclose($this->configHandle);
+
+		// if ($this->serverSocket) $this->ServerSocket->close();
+
+	}
+
+	/* Special Functions
+	------------------------------------------------------------------------------*/
+
+	//
+	public function serverIP() {
+		return $_SERVER["SERVER_ADDR"];
+	}
+
+	//
+	public function getBackupDir() {
+		$dir = dirname(dirname(__FILE__)) . "/" . $this->backupFolder;
+		if (!is_dir($dir)) {
+			mkdir($dir, 0777, true);
+		}
+		return $dir;
+	}
+
+	//
+	public function getBackupURL() {
+		return $_SERVER["REQUEST_URI"] . $this->backupFolder;
+	}
+
+	//
+	public function message(&$array, $code, $message, $override = false) {
+
+
+		// create object
+		$object = new stdClass;
+		$object->class = $this->messageCodes[$code];
+		$object->content = $message;
+
+		// override - clears previous messages
+		if ($override) {
+			// override
+			$array = array($object);
+		} else {
+			// push
+			array_push($array, $object);
+		}
+
+	}
+
+	/* Configuration Functions
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Write Server Configuration
+	 *
+	 * @param string $type Not used yet / placeholder
+	 * @param string $host Server host
+	 * @param string $port Server port
+	 * @param string $password Server password
+	 *
+	 * @return bool Returns true if config file was written to, false if not
+	 *
+	 * @todo check for duplicate-value-rewrite
+	 */
+
+	public function configWriteServer($host, $port, $username, $password) {
+
+		//
+		$this->serverHost     = $host;
+		$this->serverPort     = $port;
+		$this->serverUsername = $username;
+		$this->serverPassword = $password;
+		//
+		return $this->configWrite();
+
+	}
+
+	/**
+	 * @name Write Database Configuration
+	 *
+	 * @return bool
+	 */
+
+	public function configWriteDatabase($database) {
+
+		//
+		$this->serverDatabase = $database;
+		//
+		return $this->configWrite();
+
+	}
+
+	/**
+	 * @name Write Configuration
+	 *
+	 * @return bool
+	 */
+
+	public function configWrite() {
+
+		// file handle
+		$handle = fopen($this->configPath, "w");
+		if ($handle) {
+			// success
+			fwrite($handle, "{$this->serverHost}\n{$this->serverPort}\n{$this->serverUsername}\n{$this->serverPassword}\n{$this->serverDatabase}");
+			fclose($handle);
+			// TODO Return
+			// return true; ??
+		} else {
+			// failure : fopen()
+			$this->message($this->configMessages, self::FAIL, "Failed to write configuration.", true);
+			// TODO Return
+			// return false; ??
+		}
+
+		//
+		return $this->serverInit();
+
+	}
+
+
+	/* Configuration Template Functions
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Get Config Status
+	 *
+	 * @return bool
+	 */
+
+	public function getConfigStatus() {
+		return $this->configEnabled;
+	}
+
+
+	/* Server Functions
+	------------------------------------------------------------------------------*/
+
+	//
+	public function serverInit() {
+
 		// connect
-		if ($this->configTest() == true) {
-			if ($this->configInit()) {
-				if ($this->dataConnect($this->host, $this->port, $this->username, $this->password)) {
+		$this->serverSocket = @new mysqli($this->serverHost, $this->serverUsername, $this->serverPassword, null, (int)$this->serverPort);
+		if (!$this->serverSocket->connect_errno) {
+			// success
+			$this->message($this->serverMessages, self::PASS, "Socket connected.");
+			//
+			if ($this->serverSocket->set_charset("utf8")) {
+				if ($this->serverSocket->select_db($this->serverDatabase)) {
+					// validate IP
+					if (!$this->serverValidate()) {
+						$this->message($this->serverMessages, self::WARN, "Server &amp; Database IPs differ.");
+					}
+					// success
+					$this->message($this->serverDatabaseMessages, self::PASS, "Database selected.");
+					$this->message($this->backupMessages, self::NONE, "You&apos;re currently using the &ldquo;<span class='success'>{$this->serverDatabase}</span>&rdquo; database.");
+					return true;
+				} else {
+					// warning : select_db()
+					$this->message($this->serverDatabaseMessages, self::WARN, "No database selected.");
+					$this->serverDatabase = null;
+					return true;
+				}
+			} else {
+				// failure : set_charset()
+				// TODO Error ??
+				// TODO Message ??
+			}
+		} else {
+			// failure : mysqli() / serverSocket
+			$this->serverSocket = null;
+			$this->message($this->serverMessages, self::FAIL, "Connection failed.");
+		}
+		return false;
+
+	}
+
+	/**
+	 * @name Server Validate
+	 *
+	 * @return bool
+	 */
+
+	private function serverValidate() {
+
+		// straight match - prioritise
+		if ($this->serverHost == $this->serverIP()) return true;
+
+		// then - check for localhost
+		// if ($this->serverHost == "localhost" && $this->serverIP() == "127.0.0.1") return true;
+
+		// lastly - check for host name instead of address - does this work on localhost too?
+		if (gethostbyname($this->serverHost) == $this->serverIP()) return true;
+
+		// otherwise
+		return false;
+		// bummer...
+	}
+
+
+	/* Server Template Functions
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Get Server Status
+	 *
+	 * @return bool
+	 */
+
+	public function getServerStatus() {
+		return (bool)$this->serverSocket;
+	}
+
+	/**
+	 * @name Get Server Database Status
+	 *
+	 * @return bool
+	 */
+
+	public function getServerDatabaseStatus() {
+		return (bool)($this->getServerStatus() && (bool)$this->serverDatabase);
+	}
+
+
+	/* Server Helper Functions
+	------------------------------------------------------------------------------*/
+
+	// TODO Implement server type
+	// public function type() {
+		// return $this->serverType;
+	// }
+
+	//
+	public function getServerHost() {
+		return $this->serverHost;
+	}
+
+	//
+	public function getServerPort() {
+		return $this->serverPort;
+	}
+
+	//
+	public function getServerUsername() {
+		return $this->serverUsername;
+	}
+
+	//
+	public function getServerPassword() {
+		return $this->serverPassword;
+	}
+
+	//
+	public function getServerDatabase() {
+		return $this->serverDatabase;
+	}
+
+	//
+	public function getServerTypes() {
+		return $this->serverTypes;
+	}
+
+
+	/* Server Database Template Functions
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Has Server Databases
+	 *
+	 * @return bool
+	 */
+
+	public function hasServerDatabases() {
+
+		//
+		if ($this->serverSocket) {
+
+			// mysql
+			$result = $this->serverSocket->query("SHOW DATABASES");
+			while ($row = $result->fetch_object()) {
+				if ($row->Database != "information_schema") {
+					// return on first file
+					// TODO Expand checks
 					return true;
 				}
 			}
 		}
+
+		// no valid files
 		return false;
-		
-	}
-	
-	//// Configuration Functions
-	
-	//
-	public function configTest() {
-		
-		// file location
-		$this->file = dirname(__FILE__) . $this->configFile;
-		// file handle
-		$handle = @fopen($this->file, "a");
-		if ($handle) {
-			// success
-			fclose($handle);
-			$this->writable = true;
-		} else {
-			// failure
-			$this->writable = false;
-		}
-		// return
-		return $this->writable;
-		
-	}
-	
-	//
-	public function configInit() {
-		// config file
-		$data = file($this->file);
-		if ($data) {
-			// config file is readable
-			$this->host = trim(@$data[0]);
-			$this->port = trim(@$data[1]);
-			$this->username = trim(@$data[2]);
-			$this->password = trim(@$data[3]);
-			$this->database = trim(@$data[4]);
-			return true;
-		} else {
-			// config file not found
-			return false;
-		}
-	}
-	
-	/**
-	 * @name Create Configuration
-	 * @var type (unused as yet)
-	 * @var host
-	 * @var port
-	 * @var password
-	 * @var database
-	 * @return boolean
-	 * 
-	 * @todo test for exact match in config + input
-	 */
-	public function configWrite($host, $port, $username, $password, $database) {
-		//
-		$this->host = ($host) ? $host : "localhost";
-		$this->port = ($port) ? $port : "3306";
-		$this->username = ($username) ? $username : "root";
-		$this->password = ($password) ? $password : "";
-		$this->database = ($database) ? $database : "";
-		// file handle
-		$handle = fopen($this->file, "w");
-		if ($handle) {
-			// success
-			fwrite($handle, "$host\n$port\n$username\n$password\n$database");
-			fclose($handle);
-			return true;
-			// failure
-		} else {
-			return false;
-		}
-	}
-	// JUMPER!-func
-	public function configWriteDB($database) {
-		//
-		$this->database = $database;
-		//
-		return $this->configWrite($this->host, $this->port, $this->username, $this->password, $this->database);
-	}
-	
-	//
-	public function configEnabled() {
-		return (bool)$this->writable;
-	}
-	
-	/**
-	 * @name Is Configured
-	 * @return boolean
-	 */
-	// public function isConfigured() {
-		// return ($this->host && $this->pass && $this->username && $this->password) ? true : false;
-	// }
-	
-	//// Configuration Status Functions
-	
-	/**
-	 * Get Config Status
-	 * @return CSS class
-	 */
-	public function getConfigStatus() {
-		return ($this->configEnabled()) ? $this->successClass : $this->failureClass;
-	}
-	
-	/**
-	 * Get Config Message
-	 * @return string
-	 */
-	public function getConfigMessage() {
-		if (!$this->configEnabled()) {
-			return "Configuration failed.";
-		// } else if ($this->host && $this->port && $this->username && $this->password) {
-			// return "Config loaded from file.";
-		} else {
-			return "Configuration passed.";
-		}
-	}
-	
-	//// Database Functions
-	
-	// temporal testing function
-	public function dataTest($host, $port, $username, $password) {
-		// defaults
-		$host = ($host) ? $host : "localhost";
-		$port = ($port) ? $port : "3306";
-		$username = ($username) ? $username : "root";
-		$password = ($password) ? $password : "";
-		// test connection
-		$this->link = mysql_connect("$host:$port", $username, $password);
-		return ($this->link) ? true : false;
-	}
-	
-	//
-	public function dataConnect() {
-		// run connection
-		$this->link = mysql_connect("{$this->host}:{$this->port}", $this->username, $this->password);
-		$this->connected = (mysql_set_charset('utf8', $this->link)) ? true : false;
-		// select database
-		if ($this->link) {
-			// explicitly sets & unsets i.e. null is meaningful
-			return $this->selected = (mysql_select_db($this->database, $this->link)) ? true : false;
-		}
-		// return falls through
-		return $this->connected;
-	}
-	
-	//
-	public function dataConnected() {
-		return (bool)$this->connected;
-	}
-	
-	/**
-	 * 
-	 */
-	public function getDataStatus() {
-		return ($this->dataConnected()) ? $this->successClass : $this->failureClass;
-	}
-	
-	/**
-	 * 
-	 */
-	public function getDataMessage() {
-		if ($this->dataConnected()) {
-			return "Successfully connected.";
-		} else {
-			return "Not connected, please enter your details above.";
-		}
-	}
-	
-	//
-	public function dataSelected() {
-		return (bool)$this->selected;
-	}
-	
-	/**
-	 * 
-	 */
-	public function getSelectedStatus() {
-		return ($this->dataSelected()) ? $this->successClass : $this->failureClass;
-	}
-	
-	/**
-	 * 
-	 */
-	public function getSelectedMessage() {
-		if ($this->dataSelected()) {
-			return "Successfully loaded.";
-		} else {
-			return "Not connected, please select a database above.";
-		}
-	}
-	
-	//
-	// public function type() {
-		// return $this->type;
-	// }
-	
-	//
-	public function host() {
-		return $this->host;
-	}
-	
-	//
-	public function port() {
-		return $this->port;
-	}
-	
-	//
-	public function username() {
-		return $this->username;
-	}
-	
-	//
-	public function password() {
-		return $this->password;
-	}
-	
-	//
-	public function database() {
-		return $this->database;
-	}
-	
-	//
-	public function types() {
-		return $this->types;
-	}
-	
-	public function fetchDatabases() {
-		//
-		if (!$this->link) return false;
-		
-		//
-		$list = mysql_list_dbs($this->link);
-		$temp = array();
-		echo "hello";
-		while ($row = mysql_fetch_array($list)) {
-			array_push($temp, $row);
-		}
-		print_r($temp);
-		
-		//
-		$return = array("" => "Please select...");
-		$list = mysql_list_dbs($this->link);
-		while ($row = mysql_fetch_object($list)) {
-			if ($row->Database != "information_schema") $return[$row->Database] = $row->Database;
-		}
-		return $return;
-		
-		//
-		// $query = mysql_query("SHOW DATABASES", $this->link);
-		// $return = array();
-		// while ($row = mysql_fetch_assoc($query)) {
-			// array_push($return, $row["Database"]);
-		// }
-		// return $return;
+
 	}
 
-	//
-	// public function selectDatabase($database) {
-		// //
-		// return mysql_select_db($database, $this->link);
-	// }
+	/**
+	 * @name Get Server Databases
+	 * Gets array of local database names
+	 *
+	 * @return array
+	 */
 
-	//
-	public function fetchTables($database) {
+	public function getServerDatabases() {
+
 		//
-		$query = "SHOW TABLES FROM $database";
-		$result = mysql_query($query);
+		if ($this->serverSocket) {
+
+			// initial
+			$return = array("" => "Please select...");
+
+			// mysql
+			$result = $this->serverSocket->query("SHOW DATABASES");
+			while ($row = $result->fetch_object()) {
+				if ($row->Database != "information_schema") {
+					$return[$row->Database] = $row->Database;
+				}
+			}
+
+			// return databases
+			return $return;
+		} return false;
+
+	}
+
+
+	/* Backup Functions
+	------------------------------------------------------------------------------*/
+
+	/**
+	 * @name Has Backups
+	 *
+	 * @return bool
+	 */
+
+	public function hasBackups() {
+
+		//
+		$dir = $this->getBackupDir();
+	  if (!is_readable($dir)) return null;
+	  $handle = opendir($dir);
+	  while (false !== ($entry = readdir($handle))) {
+	    if ($entry != "." && $entry != "..") {
+	      return true;
+	    }
+	  }
+	  return false;
+
+	}
+
+	/**
+	 * @name Get Backups
+	 *
+	 * @return array
+	 */
+
+	public function getBackups() {
+		//
+		$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->getBackupDir()));
+		if (!$it->valid()) {
+			// failure
+			return false;
+		}
 		//
 		$return = array();
-		while ($row = mysql_fetch_row($result)) {
-			array_push($return, $row[0]);
+		while($it->valid()) {
+	    if (!$it->isDot()) {
+
+				// filename = NNNNyNNmNNdNNhNNiNNs_[database]_[transaction].sql.tar.gz
+	    	$filename = $it->getSubPathName();
+
+				// some creative array-use :)
+				$parts = explode("_", $filename);
+
+				// date
+				$dateString = array_shift($parts);
+				$dateStringParts = preg_split("/\D/", $dateString);
+				$timestamp = mktime((int)$dateStringParts[3], (int)$dateStringParts[4], (int)$dateStringParts[5], (int)$dateStringParts[1], (int)$dateStringParts[2], (int)$dateStringParts[0]);
+				$date = date("Y-m-d", $timestamp);
+				$time = date("H:i:s", $timestamp);
+
+				// host
+				$hostString = array_shift($parts);
+				$hostIP = "";
+				for ($i = 0; $i < 4; $i++) {
+					// add dot to all but the first element
+					if ($hostIP) $hostIP .= ".";
+					$hostIP .= (int)substr($hostString, ($i * 3), 3);
+				}
+
+				// info
+				$stat = array_pop($parts);
+				$info = explode(".", $stat);
+				$type = array_shift($info);
+				// $ext = array_shift($info);
+				// $compression = implode(".", $info);
+				$ext = implode(".", $info);
+
+				// database
+				$database = implode("_", $parts);
+
+				// class object
+	    	$temp = new stdClass();
+				$temp->filename = $filename;
+				$temp->date = $date;
+				$temp->time = $time;
+				$temp->server = $hostIP;
+				$temp->database = $database;
+				$temp->type = $type;
+				$temp->extension = $ext;
+	    	array_push($return, $temp);
+	    }
+			$it->next();
 		}
+		$return = array_reverse($return);
 		return $return;
 	}
-	
+
+
+	/* Controller Functions
+	------------------------------------------------------------------------------*/
+
 	/**
 	 * @name Backup
-	 * @return filename || false
+	 *
+	 * @return string || false
+	 *
+	 * @todo Impement selective tables
 	 */
-	function backup($tables = "*") {
-		
-		// get all of the tables
-		if ($tables == '*') {
-			$tables = array();
-			$result = mysql_query('SHOW TABLES');
-			while($row = mysql_fetch_row($result)) {
-				$tables[] = $row[0];
+
+	function backup($selector = "*") {
+
+		//
+		$this->serverInit();
+		$tables = array();
+
+		//
+		if ($this->serverSocket) {
+			if ($selector == "*") {
+
+				// all tables
+				$result = $this->serverSocket->query("SHOW TABLES");
+				while ($row = $result->fetch_row()) {
+					$table = $row[0];
+					if ($table != "information_schema") {
+						$tables[] = $table;
+					}
+				}
+			} else {
+				// selective tables
+				// convert to array if CSV string
+				$tables = is_array($tables) ? $tables : explode(',', $tables);
 			}
-		} else {
-			$tables = is_array($tables) ? $tables : explode(',', $tables);
+
 		}
-		
+
 		$SQL = "";
 		// cycle through
 		foreach ($tables as $table) {
-			$result = mysql_query("SELECT * FROM `$table`");
-			if ($result) {
-				$num_fields = mysql_num_fields($result);
-			} else {
-				$num_fields = 0;
-			}
-			
+
+			// drop
 			$SQL .= "DROP TABLE IF EXISTS `$table`;";
-			$row2 = mysql_fetch_row(mysql_query("SHOW CREATE TABLE `$table`"));
-			$SQL .= "\n\n" . $row2[1] . ";\n\n";
-			
+
+			// create
+			$create = $this->serverSocket->query("SHOW CREATE TABLE `$table`");
+			$script = $create->fetch_row();
+			$SQL .= "\n\n" . $script[1] . ";\n\n";
+
+			// values
+			$result = $this->serverSocket->query("SELECT * FROM `$table`");
+			$num_fields = $result->field_count;
+			// loop over columns
 			for ($i = 0; $i < $num_fields; $i++) {
-				while ($row = mysql_fetch_row($result)) {
+				while ($row = $result->fetch_row()) {
 					$SQL .= "INSERT INTO `$table` VALUES(";
 					for ($j = 0; $j < $num_fields; $j++) {
 						$value = addslashes($row[$j]);
@@ -379,62 +603,52 @@ class ReconDB {
 			}
 			$SQL.="\n\n\n";
 		}
-		
+
 		// server name formatting
-		$serverArray = explode(".", $this->serverIP);
+		$serverArray = explode(".", $this->serverIP());
 		$server = "";
 		foreach ($serverArray as $part) {
 			$server .= str_pad((int)$part, 3, "0", STR_PAD_LEFT);
 		}
-		
+
 		// variables
-		$archiveName = date("Y\ym\md\dG\hi\ms\s") . "_{$server}_{$this->database}_backup.recondb.gz";
+		$archiveName = date("Y\ym\md\dG\hi\ms\s") . "_{$server}_{$this->serverDatabase}_backup.recondb.gz";
 		$archivePath = $this->getBackupDir() . $archiveName;
-		
-		//
+
+		// compress
 		$io = gzopen($archivePath, "w9");
 		$bytes = gzwrite($io, $SQL);
 		gzclose($io);
-		
-		//
+
+		// return
 		if ($bytes) {
+			// success
+			$this->message($this->backupMessages, self::PASS, "Successfully backed up.", true);
 			return $archiveName;
 		} else {
 			// failure
+			$this->message($this->backupMessages, self::FAIL, "Back-up failed.", true);
 			return false;
 		}
-		
-		$sqlName = $name . ".recondb";
-		// temp phar archive path
-		$pharPath = $this->getBackupDir() . $name . ".tar";
-		// permanent archive name & path
-		$archiveName = $sqlName . ".tar.gz";
-		$archivePath = $this->getBackupDir() . $archiveName;
-		
-		// 
-		$phar = new PharData($pharPath);
-		$phar->addFromString($sqlName, $SQL);
-		$pharData = $phar->compress(Phar::GZ, ".recondb.tar.gz");
-		
-		// housekeeping
-		unset($phar);
-		Phar::unlinkArchive($pharPath);
-		
-		if ($pharData) {
-			return $archiveName;
-		} else {
-			// error
-			return false;
-		}
-		
+
 	}
+
+	////
+
+	//function mysqldump($user, $pass, $db) {
+		//	$output = `mysqldump -u $user -p$pass $db > $filename`;
+	//}
 
 	/**
 	 * @name Export
-	 * @todo contains random header output code
+	 *
+	 * @return void
+	 *
+	 * @todo contains random header output code (for now)
 	 */
-	public function export() {
-		
+
+	// public function export() {
+
 		//
 		// if (strlen($SQL) > 0) {
 			// //
@@ -453,147 +667,81 @@ class ReconDB {
 		// } else {
 			// echo "No Content";
 		// }
-		
-	}
-		
+
+	// }
+
 	/**
 	 * @name Install
-	 * @return boolean
+	 *
+	 * @return boole
 	 */
+
 	public function install($filename) {
-		
-		//
+
+		// init server
+		$this->serverInit();
+
+		// get SQL data
 		$maxBytes = 24 * 1024 * 1024;
-		
-		//
 		$archivePath = $this->getBackupDir() . $filename;
-		
-		//
 		$handle = gzopen($archivePath, "r");
 		$SQL = gzread($handle, $maxBytes);
 		gzclose($handle);
-		
-		//
-		/* execute multi query */
-		$link = mysqli_connect($this->host, $this->username, $this->password, $this->database, $this->port);
-		if (mysqli_multi_query($link, $SQL)) {
+
+		// sql multi-query
+		if ($this->serverSocket->multi_query($SQL)) {
+			do {
+				/* store first result set */
+				if ($result = $this->serverSocket->store_result()) {
+					// while ($row = $result->fetch_row()) {
+						// printf("%s\n", $row[0]);
+					// }
+					$result->free();
+				}
+			} while ($this->serverSocket->next_result());
+			// success
+			$this->message($this->backupMessages, self::PASS, htmlentities("Backup successfully installed."), true);
 			return true;
 		} else {
+			// failure : multi_query()
+			$this->message($this->backupMessages, self::FAIL, htmlentities("Backup installation failed."), true);
 			return false;
 		}
-		
-	}
-	
-	//function mysqldump($user, $pass, $db) {
-		//	$output = `mysqldump -u $user -p$pass $db > $filename`;
-	//}
-	
-	// backupMySQL($host, $user, $pass, $name, $tables);
-	
-	/**
-	 * @name Delete
-	 */
-	public function delete($filename) {
-		$path = $this->getBackupDir() . $filename;
-		return unlink($path);
-	}
-	
-	/**
-	 * File System Functions
-	 */
-	
-	// 
-	public function getBackups() {
-		//
-		$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->getBackupDir()));
-		if (!$it->valid()) {
-			return false;
-		}
-		//
-		$return = array();
-		while($it->valid()) {
-	    if (!$it->isDot()) {
-	    	//
-	    	$filename = $it->getSubPathName();
-				// $return .= 'SubPathName: ' . $it->getSubPathName() . "\n";
-				// $return .= 'SubPath:     ' . $it->getSubPath() . "\n";
-				// $return .= 'Key:         ' . $it->key() . "\n\n";
-				// 
-				// filename = NNNNyNNmNNdNNhNNiNNs_[database]_[transaction].sql.tar.gz
-				// some creative array-use :)
-				$parts = explode("_", $filename);
-				// divide up
-				$dateString = array_shift($parts);
-				$hostString = array_shift($parts);
-				$stat = array_pop($parts);
-				$database = implode("_", $parts);
-				// date
-				$dateStringParts = preg_split("/\D/", $dateString);
-				$timestamp = mktime((int)$dateStringParts[3], (int)$dateStringParts[4], (int)$dateStringParts[5], (int)$dateStringParts[1], (int)$dateStringParts[2], (int)$dateStringParts[0]);
-				$date = date("Y-m-d", $timestamp);
-				$time = date("H:i:s", $timestamp);
-				// host
-				$hostIP = "";
-				for ($i = 0; $i < 4; $i++) {
-					// add dot to all but the first element
-					if ($hostIP) $hostIP .= ".";
-					$hostIP .= (int)substr($hostString, ($i * 3), 3);
-				}
-				// info
-				$info = explode(".", $stat);
-				$type = array_shift($info);
-				// $ext = array_shift($info);
-				// $compression = implode(".", $info);
-				$ext = implode(".", $info);
-				// class object
-	    	$temp = new stdClass();
-				$temp->filename = $filename;
-				$temp->date = $date;
-				$temp->time = $time;
-				$temp->server = $hostIP;
-				$temp->database = $database;
-				$temp->type = $type;
-				$temp->extension = $ext;
-	    	array_push($return, $temp);
-	    }
-			$it->next();
-		}
-		$return = array_reverse($return);
-		return $return;
+
 	}
 
 	/**
-	 * Special Accessors
+	 * @name Delete
+	 *
+	 * @return bool
 	 */
-	
-	//
-	public function getBackupDir() {
-		$dir = dirname(dirname(__FILE__)) . "/" . $this->backupDir;
-		if (!is_dir($dir)) {
-			mkdir($dir, 0777, true);
+
+	public function delete($filename) {
+
+		//
+		$this->serverInit();
+
+		// unlink if exists
+		$path = $this->getBackupDir() . $filename;
+		if (file_exists($path)) {
+			if (unlink($path)) {
+				// success
+				$this->message($this->backupMessages, self::PASS, htmlentities("File successfully deleted."), true);
+				return true;
+			} else {
+				// failure : unlink()
+				$this->message($this->backupMessages, self::FAIL, htmlentities("Failed to delete file."), true);
+			}
+		} else {
+			// failure : file_exists()
+			$this->message($this->backupMessages, self::WARN, htmlentities("File not found."), true);
 		}
-		return $dir;
-	}
-	
-	//
-	public function getBackupURL() {
-		return $_SERVER["REQUEST_URI"] . $this->backupDir;
-	}
-	
-	//
-	public function validateIP() {
-		// straight match - prioritise
-		if ($this->serverIP != $this->database) return true;
-		// then - check for localhost
-		if ($this->serverIP == "127.0.0.1" && $this->host == "localhost") return true;
-		// lastly - check for host name instead of address - does this work on localhost too?
-		$hostIP = gethostbyname($this->host);
-		if ($hostIP == $this->serverIP) return true;
-		// otherwise
+
+		// default
 		return false;
-		// bummer...
+
 	}
-	
+
 }
 //// End
 ?>

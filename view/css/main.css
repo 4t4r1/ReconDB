@@ -5,19 +5,20 @@ html {
 }
 html, td {
 	color: white;
-	font: 10px/12px monospace;
+	font: 11px/14px monospace;
 }
 
 input,
 select,
 textarea {
 	color: #333;
+	font: 11px/14px monospace;
 	vertical-align: middle;
 }
 
 a {
 	color: white;
-	font: 10px/12px monospace;
+	font: 11px/14px monospace;
 	background: #000;
 }
 a:hover {
@@ -35,6 +36,7 @@ span.os {
 .failure {
 	color: OrangeRed;
 }
+.warning,
 .alert {
 	color: Gold;
 }
@@ -68,11 +70,11 @@ div.menu {
 	top: 0;
 	left: 10px;
 	width: 230px;
-	
+
 }
 
 	div.menu ul {
-		
+
 	}
 		div.menu ul li {
 			line-height: 20px;
@@ -82,7 +84,7 @@ div.menu {
 				div.menu ul li input {
 					margin: 0;
 				}
-	
+
 	/* slightly different scope */
 	form[name='server'] li.field input,
 	form[name='server'] li.field select {
@@ -98,13 +100,17 @@ div.display {
 	padding-left: 250px; /* match with menu width */
 }
 
+div.display td {
+	text-align: center;
+}
+
 td.actions form {
-	display: inline-block;	
+	display: inline-block;
 }
 
 td.actions input {
 	color: white;
-	font: 10px/12px monospace;
+	font: 11px/14px monospace;
 	text-decoration: underline;
 	vertical-align: top;
 	border: none;
@@ -144,7 +150,7 @@ form {
 	padding: 0;
 	margin: 0;
 }
-				
+
 form select {
 	padding-top: 2px;
 	height: 19px;
