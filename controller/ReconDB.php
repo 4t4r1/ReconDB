@@ -506,6 +506,9 @@ class ReconDB {
 	public function getBackups() {
 		//
 		$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->getBackupDir()));
+		if (!$it->valid()) {
+			return false;
+		}
 		//
 		$return = array();
 		while($it->valid()) {
@@ -565,7 +568,11 @@ class ReconDB {
 	
 	//
 	public function getBackupDir() {
-		return dirname(dirname(__FILE__)) . "/" . $this->backupDir;
+		$dir = dirname(dirname(__FILE__)) . "/" . $this->backupDir;
+		if (!is_dir($dir)) {
+			mkdir($dir, 0777, true);
+		}
+		return $dir;
 	}
 	
 	//

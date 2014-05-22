@@ -285,9 +285,12 @@
 		<p class="<?php echo $contentClass; ?>"><?php echo $content; ?></p>
 		<br />
 		<!-- history -->
+	<?php
+		$backups = $recon->getBackups();
+		if ($backups):
+	?>
 		<h2>Local Database Back-ups</h2>
 		<div class="view nopad">
-			<!-- <h1>Menu</h1> -->
 			<table class="clear">
 					<tr>
 						<th>date</th>
@@ -298,7 +301,7 @@
 						<th>extension</th>
 						<th>actions</th>
 					</tr>
-	<?php foreach ($recon->getBackups() as $backup): ?>
+		<?php foreach ($backups as $backup): ?>
 				<tr>
 					<td><? echo $backup->date; ?></td>
 					<td><? echo $backup->time; ?></td>
@@ -322,8 +325,11 @@
 						<a class="action" href="?action=delete&filename=<?php echo $backup->filename; ?>" onclick="return confirmDelete();">delete</a> -->
 					</td>
 				</tr>
-	<?php endforeach; ?>
-			</ul>
+		<?php endforeach; ?>
+			</table>
+	<?php else: ?>
+		<h2 class="alert">No Local Database Back-ups</h2>
+	<?php endif; ?>
 		</div>
 <script type="text/javascript">
 //
