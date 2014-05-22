@@ -18,7 +18,7 @@ This is meant to be as seamless and simple as possible - bells and whistles and 
 3. Git commit on local
 4. Git push local to master
 5. Git pull master on remote
-6. Run through usage steps - remote)
+6. (Run through usage steps - remote)
 
 ## Usage
 
@@ -36,19 +36,19 @@ But I smell "advanced configuration" in the air.
 
 Locally, the purpose is generally to back up changes to make available remotely, however, in a development-sense it will also work perfectly for taking database snapshots at any point with roll-back and roll-forward capabilities.
 
-This is where you get to use the single global function (for now) - BACKUP!
-
-And it should pop a GZipped archive in your backup folder, ready to be versioned & posted off to a remote server.
+1. There is only one function (for now) - backup - which should pop a GZipped archive in your backup folder, ready to be versioned & posted off to a remote server.
 
 ### Remote
 
-On remote, the purpose is generally to update a staged server, live server (on launches, presumably, not every day) or synchronise any development changes across a develpoment team. Again, it can be used outside the box.
+On remote, the purpose is generally to update a staged server, live server (on launches, presumably, not every day) or synchronise any development changes across a development team, gain, please use outside the box.
 
-Synchronised files should appear on the remote system still bearing the original IP address in rder to tell them apart, as well as further metadata.
+1. Synchronised files should appear on the remote system still bearing the original IP address in order to tell them apart, as well as further metadata.
+2. Create a local backup - if you want
+3. Install the new database
 
 ## Alpha Testers and Developers
 
-Well, this is a project in it's infancy, but I created it to solve a problem I have when deploying website or even going back to old ones after years. I can never find the f*^%ing passwords - ssh, account center, control panel, FTP, database, etc! - and the process is different with practically each-and-every server.
+Well, this is a project in it's infancy, but I created it to solve a problem I have when deploying website or even going back to old ones after years. I can never find the f*^%ing passwords - SSH, account centers, control panels, FTP, databases, etc! - and the process is different with practically each-and-every server.
 
 This is also angled squarely at being evolved into a module specifically for the SilverStripe CMS, as that is the framework I use. That doesn't stop it from being abstracted and used in any other suitable framework or web system of any kind. Suggestions welcome :)
 
