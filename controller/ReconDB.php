@@ -151,7 +151,6 @@ class ReconDB {
 	//
 	public function message(&$array, $code, $message, $override = false) {
 
-
 		// create object
 		$object = new stdClass;
 		$object->class = $this->messageCodes[$code];
@@ -310,7 +309,7 @@ class ReconDB {
 		// then - check for localhost
 		// if ($this->serverHost == "localhost" && $this->serverIP() == "127.0.0.1") return true;
 
-		// lastly - check for host name instead of address - does this work on localhost too?
+		// lastly - check for host name instead of address - does this work on localhost too? - yes @ 29 May 2014.
 		if (gethostbyname($this->serverHost) == $this->serverIP()) return true;
 
 		// otherwise
@@ -343,7 +342,7 @@ class ReconDB {
 	}
 
 
-	/* Server Helper Functions
+	/* Server Helper Functions (Getters)
 	------------------------------------------------------------------------------*/
 
 	// TODO Implement server type
@@ -704,7 +703,7 @@ class ReconDB {
 			return true;
 		} else {
 			// failure : multi_query()
-			$this->message($this->backupMessages, self::FAIL, htmlentities("Backup installation failed."), true);
+			$this->message($this->backupMessages, self::FAIL, htmlentities("Backup installation failed: [{$this->serverSocket->errno}] {$this->serverSocket->error}"), true);
 			return false;
 		}
 
